@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use App\Helpers\ImageHelper;
 
 
@@ -16,14 +17,14 @@ class CustomerController extends Controller
     // Redirect ke Google
     public function redirect()
     {
-        return Socialite::driver('google')->redirect();
+        return Socialite::driver('google')->stateless()->redirect();
     }
 
     // Callback dari Google
-    public function callback()
+    public function callback(Request $request)
     {
         try {
-            $socialUser = Socialite::driver('google')->user();
+            $socialUser = Socialite::driver('google')->stateless()->user();
 
             // Cek apakah email sudah terdaftar
             $registeredUser = User::where('email', $socialUser->email)->first();
@@ -49,9 +50,10 @@ class CustomerController extends Controller
                 // Login pengguna baru
                 Auth::login($user);
             } else {
-                if ((int) $registeredUser->role === 2 && !$registeredUser->customer) {
-                    Customer::create([
+                if ((int) $registeredUser->role === 2) {
+                    Customer::updateOrCreate([
                         'user_id' => $registeredUser->id,
+                    ], [
                         'google_id' => $socialUser->id,
                         'google_token' => $socialUser->token
                     ]);
@@ -61,11 +63,17 @@ class CustomerController extends Controller
                 Auth::login($registeredUser);
             }
 
+            $request->session()->regenerate();
+
             // Redirect ke halaman utama
             return $this->redirectAfterGoogleLogin();
         } catch (\Exception $e) {
+            Log::error('Google login failed', [
+                'message' => $e->getMessage(),
+            ]);
+
             // Redirect ke halaman utama jika terjadi kesalahan
-            return redirect('/')->with('error', 'Terjadi kesalahan saat login dengan Google.');
+            return redirect()->route('frontend.login')->with('error', 'Terjadi kesalahan saat login dengan Google. Silakan coba lagi.');
         }
     }
 
@@ -162,6 +170,6 @@ class CustomerController extends Controller
             return redirect()->route('backend.beranda');
         }
 
-        return redirect()->intended('beranda');
+        return redirect()->route('beranda')->with('success', 'Anda berhasil login dengan Google.');
     }
 }
