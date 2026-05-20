@@ -34,6 +34,42 @@
         .auth-wrapper {
             min-height: 100vh;
         }
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 18px 0;
+            color: #8a96a3;
+            font-size: 13px;
+        }
+        .auth-divider::before,
+        .auth-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #e5e9f0;
+        }
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 1px solid #d9dee8;
+            background: #fff;
+            color: #34495e;
+            font-weight: 600;
+        }
+        .btn-google:hover,
+        .btn-google:focus {
+            border-color: #b8c1d1;
+            background: #f8fafc;
+            color: #233142;
+        }
+        .google-icon {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 20px;
+        }
     </style>
 </head>
 
@@ -113,6 +149,18 @@
                 </div>
 
             </form>
+
+            <div class="auth-divider">atau</div>
+
+            <a href="{{ route('auth.redirect') }}" class="btn btn-google btn-lg w-100">
+                <svg class="google-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                    <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.5l6.8-6.8C35.7 2.3 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.9 6.1C12.4 13.5 17.8 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.7h12.7c-.6 2.9-2.2 5.3-4.7 6.9l7.3 5.7c4.3-4 7.2-9.9 7.2-16.8z"/>
+                    <path fill="#FBBC05" d="M10.5 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.9-6.1C1 16.5 0 20.1 0 24s1 7.5 2.6 10.7l7.9-6.1z"/>
+                    <path fill="#34A853" d="M24 48c6.3 0 11.6-2.1 15.4-5.7l-7.3-5.7c-2 1.4-4.6 2.2-8.1 2.2-6.2 0-11.6-4-13.5-9.5l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/>
+                </svg>
+                Login dengan Google
+            </a>
 
         </div>
     </div>

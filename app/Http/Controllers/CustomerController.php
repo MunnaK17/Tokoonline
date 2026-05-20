@@ -16,7 +16,7 @@ class CustomerController extends Controller
     // Redirect ke Google
     public function redirect()
     {
-        return redirect()->route('frontend.login');
+        return Socialite::driver('google')->redirect();
     }
 
     // Callback dari Google
@@ -49,7 +49,7 @@ class CustomerController extends Controller
                 // Login pengguna baru
                 Auth::login($user);
             } else {
-                if (!$registeredUser->customer) {
+                if ((int) $registeredUser->role === 2 && !$registeredUser->customer) {
                     Customer::create([
                         'user_id' => $registeredUser->id,
                         'google_id' => $socialUser->id,
@@ -62,7 +62,7 @@ class CustomerController extends Controller
             }
 
             // Redirect ke halaman utama
-            return redirect()->intended('beranda');
+            return $this->redirectAfterGoogleLogin();
         } catch (\Exception $e) {
             // Redirect ke halaman utama jika terjadi kesalahan
             return redirect('/')->with('error', 'Terjadi kesalahan saat login dengan Google.');
@@ -154,5 +154,14 @@ class CustomerController extends Controller
             'pos' => $request->input('pos'),
         ]);
         return redirect()->route('customer.akun', $id)->with('success', 'Data berhasil diperbarui');
+    }
+
+    private function redirectAfterGoogleLogin()
+    {
+        if (in_array((int) Auth::user()->role, [0, 1], true)) {
+            return redirect()->route('backend.beranda');
+        }
+
+        return redirect()->intended('beranda');
     }
 }
