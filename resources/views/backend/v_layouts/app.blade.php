@@ -33,6 +33,7 @@
       rel="stylesheet"
     />
     <link href="/admin-assets/dist/css/style.min.css" rel="stylesheet" />
+    @stack('styles')
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
     <!--[if lt IE 9]>
@@ -225,6 +226,29 @@
                   ><span class="hide-menu">Customer</span></a
                 >
               </li>
+              <li class="sidebar-item">
+                <a
+                  class="sidebar-link has-arrow waves-effect waves-dark"
+                  href="javascript:void(0)"
+                  aria-expanded="false"
+                  ><i class="mdi mdi-cart"></i
+                  ><span class="hide-menu">Pesanan </span></a
+                >
+                <ul aria-expanded="false" class="collapse first-level">
+                  <li class="sidebar-item">
+                    <a href="{{ route('pesanan.proses') }}" class="sidebar-link"
+                      ><i class="mdi mdi-chevron-right"></i
+                      ><span class="hide-menu"> Proses </span></a
+                    >
+                  </li>
+                  <li class="sidebar-item">
+                    <a href="{{ route('pesanan.selesai') }}" class="sidebar-link"
+                      ><i class="mdi mdi-chevron-right"></i
+                      ><span class="hide-menu"> Selesai </span></a
+                    >
+                  </li>
+                </ul>
+              </li>
               
               <li class="sidebar-item">
                 <a
@@ -290,13 +314,13 @@
         <div class="page-breadcrumb">
           <div class="row">
             <div class="col-12 d-flex no-block align-items-center">
-              <h4 class="page-title">Tables</h4>
+              <h4 class="page-title">{{ $judul ?? 'Dashboard' }}</h4>
               <div class="ms-auto text-end">
                 <nav aria-label="breadcrumb">
                   <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="#">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('backend.beranda') }}">{{ $judul ?? 'Home' }}</a></li>
                     <li class="breadcrumb-item active" aria-current="page">
-                      Library
+                      {{ $subJudul ?? 'Dashboard' }}
                     </li>
                   </ol>
                 </nav>
@@ -430,6 +454,7 @@ $('.show_confirm').click(function(event) {
             console.error(error);
         });
 </script>
+@stack('scripts')
 
   </body>
 </html>

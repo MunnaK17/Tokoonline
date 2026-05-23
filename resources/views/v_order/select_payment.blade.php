@@ -109,7 +109,7 @@
             onSuccess: function(result) {
                 alert("payment success!");
                 console.log(result);
-                window.location.href = "{{ route('order.complete') }}";
+                window.location.href = "{{ route('order.complete') }}?order_id=" + encodeURIComponent(result.order_id || '');
             },
             onPending: function(result) {
                 alert("waiting for your payment!");

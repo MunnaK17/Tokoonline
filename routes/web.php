@@ -65,6 +65,22 @@ Route::get('backend/customer', [CustomerController::class, 'index'])
     ->name('backend.customer.index')
     ->middleware(['auth', 'is.admin']);
 
+Route::get('backend/pesanan/proses', [OrderController::class, 'statusProses'])
+    ->name('pesanan.proses')
+    ->middleware(['auth', 'is.admin']);
+Route::get('backend/pesanan/selesai', [OrderController::class, 'statusSelesai'])
+    ->name('pesanan.selesai')
+    ->middleware(['auth', 'is.admin']);
+Route::get('backend/pesanan/{id}', [OrderController::class, 'statusDetail'])
+    ->name('pesanan.detail')
+    ->middleware(['auth', 'is.admin']);
+Route::put('backend/pesanan/{id}', [OrderController::class, 'statusUpdate'])
+    ->name('pesanan.update')
+    ->middleware(['auth', 'is.admin']);
+Route::get('backend/pesanan/{id}/invoice', [OrderController::class, 'invoiceBackend'])
+    ->name('pesanan.invoice')
+    ->middleware(['auth', 'is.admin']);
+
 // Frontend customer
 Route::get('/beranda', [BerandaController::class, 'frontend'])->name('beranda');
 Route::get('/produk/foto/{filename}', [ProdukController::class, 'foto'])->name('produk.foto');
@@ -87,11 +103,12 @@ Route::middleware('is.customer')->group(function () {
     Route::post('select-shipping', [OrderController::class, 'selectShipping'])->name('order.select-shipping');
     Route::post('update-ongkir', [OrderController::class, 'updateOngkir'])->name('order.update-ongkir');
     Route::get('select-payment', [OrderController::class, 'selectPayment'])->name('order.selectpayment');
-    Route::post('/midtrans-callback', [OrderController::class, 'callback'])->name('order.midtrans-callback');
     Route::get('/order/complete', [OrderController::class, 'complete'])->name('order.complete');
     Route::get('history', [OrderController::class, 'orderHistory'])->name('order.history');
     Route::get('order/invoice/{id}', [OrderController::class, 'invoiceFrontend'])->name('order.invoice');
 });
+
+Route::post('/midtrans-callback', [OrderController::class, 'callback'])->name('order.midtrans-callback');
 
 Route::get('/cek-ongkir', function () {
     return view('ongkir');

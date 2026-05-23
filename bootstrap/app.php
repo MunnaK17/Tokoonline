@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'is.admin' => \App\Http\Middleware\IsAdmin::class,
             'is.customer' => \App\Http\Middleware\IsCustomer::class,
         ]);
+        $middleware->validateCsrfTokens(except: [
+            'midtrans-callback',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -79,7 +79,7 @@
 		  <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
 		  <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
 		<![endif]-->
-    <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js"
+    <script type="text/javascript" src="{{ config('midtrans.snap_url') }}"
         data-client-key="{{ config('midtrans.client_key') }}">
     </script>
 
@@ -229,10 +229,10 @@
                 <div id="home-slick">
                     <!-- banner -->
                     <div class="banner banner-1">
-                        <img src="{{ asset('frontend/img/banner01.jpg') }}" alt="">
+                        <img src="{{ asset('image/makanan.jpg') }}" alt="">
                         <div class="banner-caption text-center">
-                            <h1>Jajanan Tradisional</h1>
-                            <h3 class="font-weak" style="color: 30323a;">Khas Makanan Indonesia</h3>
+                            <h1 class="white-color">Jajanan Tradisional</h1>
+                            <h3 class="font-weak" style="color: #c2c2c2;">Khas Makanan Indonesia</h3>
                             <button class="primary-btn">Pesan Sekarang</button>
                         </div>
                     </div>
@@ -240,7 +240,7 @@
 
                     <!-- banner -->
                     <div class="banner banner-1">
-                        <img src="{{ asset('frontend/img/banner02.jpg') }}" alt="">
+                        <img src="{{ asset('image/jajanan.jpg') }}" alt="">
                         <div class="banner-caption">
                             <h1 class="primary-color">Khas Makanan Indonesia<br><span class="white-color font-weak">Jajanan Tradisional</span></h1>
                             <button class="primary-btn">Pesan Sekarang</button>
@@ -250,9 +250,9 @@
 
                     <!-- banner -->
                     <div class="banner banner-1">
-                        <img src="{{ asset('frontend/img/banner03.jpg') }}" alt="">
+                        <img src="{{ asset('image/dawet.jpg') }}" alt="">
                         <div class="banner-caption">
-                            <h1 style="color: f8694a;">Khas Makanan <span>Indonesia</span></h1>
+                            <h1 style="color: #f04814;">Khas Makanan <span>Indonesia</span></h1>
                             <button class="primary-btn">Pesan Sekarang</button>
                         </div>
                     </div>

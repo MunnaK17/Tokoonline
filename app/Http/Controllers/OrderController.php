@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Models\Customer;
 use App\Models\Produk;
 use App\Models\Order;
@@ -13,6 +15,77 @@ use Midtrans\Config;
 
 class OrderController extends Controller
 {
+    public function statusProses()
+    {
+        $order = Order::with('customer.user')
+            ->whereIn('status', ['Paid', 'Kirim'])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return view('backend.v_pesanan.proses', [
+            'judul' => 'Pesanan',
+            'subJudul' => 'Pesanan Proses',
+            'index' => $order,
+        ]);
+    }
+
+    public function statusSelesai()
+    {
+        $order = Order::with('customer.user')
+            ->where('status', 'Selesai')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return view('backend.v_pesanan.selesai', [
+            'judul' => 'Pesanan',
+            'subJudul' => 'Pesanan Selesai',
+            'index' => $order,
+        ]);
+    }
+
+    public function statusDetail($id)
+    {
+        $order = Order::with('customer.user', 'orderItems.produk.kategori')->findOrFail($id);
+
+        return view('backend.v_pesanan.detail', [
+            'judul' => 'Pesanan',
+            'subJudul' => 'Detail Pesanan',
+            'order' => $order,
+        ]);
+    }
+
+    public function statusUpdate(Request $request, string $id)
+    {
+        $order = Order::findOrFail($id);
+
+        $rules = [
+            'alamat' => 'required',
+            'status' => 'required|in:Paid,Kirim,Selesai',
+            'pos' => 'nullable|max:10',
+            'noresi' => 'nullable|max:255',
+        ];
+
+        if ($request->input('status') === 'Kirim') {
+            $rules['noresi'] = 'required|max:255';
+        }
+
+        $validatedData = $request->validate($rules);
+        $order->update($validatedData);
+
+        return redirect()->route('pesanan.proses')->with('success', 'Data berhasil diperbaharui');
+    }
+
+    public function invoiceBackend($id)
+    {
+        $order = Order::with('customer.user', 'orderItems.produk.kategori')->findOrFail($id);
+
+        return view('backend.v_pesanan.invoice', [
+            'judul' => 'Pesanan',
+            'subJudul' => 'Invoice Pesanan',
+            'order' => $order,
+        ]);
+    }
+
     public function addToCart($id)
     {
         $customer = Customer::where('user_id', Auth::id())->first();
@@ -188,30 +261,66 @@ class OrderController extends Controller
         }
 
         // Tambahkan biaya ongkir ke total harga
-        $grossAmount = $totalHarga + $order->biaya_ongkir;
+        $grossAmount = (int) ($totalHarga + (float) $order->biaya_ongkir);
 
         // Midtrans configuration
         Config::$serverKey = config('midtrans.server_key');
-        Config::$isProduction = false;
-        Config::$isSanitized = true;
-        Config::$is3ds = true;
+        Config::$isProduction = (bool) config('midtrans.is_production');
+        Config::$isSanitized = (bool) config('midtrans.is_sanitized');
+        Config::$is3ds = (bool) config('midtrans.is_3ds');
 
         // Generate unique order_id
-        $orderId = $order->id . '-' . time();
+        $orderId = 'ORDER-' . $order->id . '-' . time();
+
+        $itemDetails = $order->orderItems->map(function ($item) {
+            return [
+                'id' => (string) $item->produk_id,
+                'price' => (int) $item->harga,
+                'quantity' => (int) $item->quantity,
+                'name' => substr($item->produk->nama_produk, 0, 50),
+            ];
+        })->values()->all();
+
+        if ((float) $order->biaya_ongkir > 0) {
+            $itemDetails[] = [
+                'id' => 'ONGKIR',
+                'price' => (int) $order->biaya_ongkir,
+                'quantity' => 1,
+                'name' => 'Ongkos Kirim',
+            ];
+        }
 
         $params = [
             'transaction_details' => [
                 'order_id' => $orderId,
-                'gross_amount' => (int) $grossAmount, // Pastikan gross_amount adalah integer
+                'gross_amount' => $grossAmount,
             ],
+            'item_details' => $itemDetails,
             'customer_details' => [
                 'first_name' => $customer->nama,
                 'email' => $customer->email,
                 'phone' => $customer->hp,
             ],
+            'callbacks' => [
+                'finish' => route('order.complete'),
+            ],
         ];
 
-        $snapToken = config('midtrans.server_key') ? Snap::getSnapToken($params) : null;
+        $snapToken = null;
+        if (config('midtrans.server_key')) {
+            try {
+                $snapToken = Snap::getSnapToken($params);
+            } catch (\Throwable $e) {
+                Log::error('Midtrans Snap token failed', [
+                    'order_id' => $order->id,
+                    'message' => $e->getMessage(),
+                ]);
+
+                return redirect()->route('order.cart')
+                    ->with('error', 'Gagal membuat token pembayaran Midtrans. Silakan coba lagi.');
+            }
+        }
+
         return view('v_order.select_payment', [
             'order' => $order,
             'origin' => $origin,
@@ -222,34 +331,75 @@ class OrderController extends Controller
 
     public function callback(Request $request)
     {
-        // dd($request->all());
         $serverKey = config('midtrans.server_key');
-        $hashed = hash("sha512", $request->order_id . $request->status_code . $request->gross_amount . $serverKey);
-        if ($hashed == $request->signature_key) {
-            $order = Order::find($request->order_id);
-            if ($order) {
-                $order->update(['status' => 'Paid']);
-            }
+
+        if (!$serverKey) {
+            return response()->json(['message' => 'Midtrans server key belum dikonfigurasi'], 500);
         }
+
+        $signatureKey = hash('sha512', $request->order_id . $request->status_code . $request->gross_amount . $serverKey);
+        if (!hash_equals($signatureKey, (string) $request->signature_key)) {
+            return response()->json(['message' => 'Invalid signature key'], 403);
+        }
+
+        $localOrderId = $this->localOrderIdFromMidtransOrderId((string) $request->order_id);
+        $order = Order::find($localOrderId);
+
+        if (!$order) {
+            return response()->json(['message' => 'Order tidak ditemukan'], 404);
+        }
+
+        $transactionStatus = $request->transaction_status;
+        $fraudStatus = $request->fraud_status;
+
+        $this->updateOrderStatusFromMidtrans($order, $transactionStatus, $fraudStatus);
+
+        return response()->json(['message' => 'Callback berhasil diproses']);
     }
 
-    public function complete() // Untuk kondisi local
+    public function complete(Request $request)
     {
-        // Dapatkan customer yang login
         $customer = Auth::user();
 
-        // Cari order dengan status 'pending' milik customer tersebut
+        if ($request->filled('order_id') && config('midtrans.server_key')) {
+            $midtransOrderId = (string) $request->query('order_id');
+            $localOrderId = $this->localOrderIdFromMidtransOrderId($midtransOrderId);
+
+            $order = Order::where('id', $localOrderId)
+                ->where('customer_id', $customer->customer->id)
+                ->first();
+
+            if ($order) {
+                $response = Http::withBasicAuth(config('midtrans.server_key'), '')
+                    ->acceptJson()
+                    ->get($this->midtransApiBaseUrl() . '/v2/' . urlencode($midtransOrderId) . '/status');
+
+                if ($response->successful()) {
+                    $status = $response->json();
+                    $signatureKey = hash('sha512', $status['order_id'] . $status['status_code'] . $status['gross_amount'] . config('midtrans.server_key'));
+
+                    if (hash_equals($signatureKey, (string) ($status['signature_key'] ?? ''))) {
+                        $this->updateOrderStatusFromMidtrans(
+                            $order,
+                            $status['transaction_status'] ?? null,
+                            $status['fraud_status'] ?? null
+                        );
+                    }
+                }
+            }
+
+            return redirect()->route('order.history')->with('success', 'Checkout berhasil');
+        }
+
         $order = Order::where('customer_id', $customer->customer->id)
             ->where('status', 'pending')
             ->first();
 
-        if ($order) {
-            // Update status order menjadi 'Paid'
+        if ($order && !config('midtrans.server_key')) {
             $order->status = 'Paid';
             $order->save();
         }
 
-        // Redirect ke halaman riwayat dengan pesan sukses
         return redirect()->route('order.history')->with('success', 'Checkout berhasil');
     }
 
@@ -284,5 +434,34 @@ class OrderController extends Controller
             'subJudul' => 'Pesanan Proses',
             'order' => $order,
         ]);
+    }
+
+    private function localOrderIdFromMidtransOrderId(string $midtransOrderId): int
+    {
+        if (preg_match('/^ORDER-(\d+)-/', $midtransOrderId, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return (int) $midtransOrderId;
+    }
+
+    private function updateOrderStatusFromMidtrans(Order $order, ?string $transactionStatus, ?string $fraudStatus = null): void
+    {
+        if ($transactionStatus === 'capture') {
+            if ($fraudStatus === 'accept') {
+                $order->update(['status' => 'Paid']);
+            }
+        } elseif ($transactionStatus === 'settlement') {
+            $order->update(['status' => 'Paid']);
+        } elseif (in_array($transactionStatus, ['cancel', 'deny', 'expire'], true)) {
+            $order->update(['status' => 'pending']);
+        }
+    }
+
+    private function midtransApiBaseUrl(): string
+    {
+        return config('midtrans.is_production')
+            ? 'https://api.midtrans.com'
+            : 'https://api.sandbox.midtrans.com';
     }
 }
